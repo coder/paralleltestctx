@@ -1,0 +1,68 @@
+name: quality
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel in-progress runs for pull requests when developers push additional
+# changes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: make fmt
+        run: make fmt
+
+      - name: Check unstaged
+        run: |
+          if [[ -n $(git ls-files --other --modified --exclude-standard) ]]; then
+            echo "Unexpected difference in directories after formatting. Run 'make fmt' and include the output in the commit."
+            exit 1
+          fi
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go
+
+      - name: make lint
+        run: make lint
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: ./.github/actions/setup-go
+
+      - name: make test
+        run: make test

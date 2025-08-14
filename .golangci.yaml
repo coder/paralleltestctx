@@ -1,0 +1,22 @@
+version: "2"
+
+linters:
+  enable:
+    - goconst
+    - gocritic
+    - gosec
+    - misspell
+    - nakedret
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    govet:
+      enable:
+        - shadow
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: package-comments
+          disabled: true

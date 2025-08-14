@@ -1,4 +1,4 @@
-GOLANGCI_VERSION := latest
+GOLANGCI_VERSION := 2.4.0
 
 FIND_EXCLUSIONS= \
 	-not \( \( -path '*/.git/*' -o -path './build/*' -o -path './vendor/*' -o -path '*/.terraform/*' \) -prune \)
@@ -20,7 +20,7 @@ fmt:
 .PHONY: fmt
 
 lint:
-	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION) run ./...
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_VERSION) run ./...
 .PHONY: lint
 
 test:

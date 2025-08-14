@@ -32,9 +32,3 @@ go.work.sum
 
 # Output directory
 build/
-
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.backup
-*.tfplan

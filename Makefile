@@ -1,5 +1,7 @@
 GOLANGCI_VERSION := latest
 
+FIND_EXCLUSIONS= \
+	-not \( \( -path '*/.git/*' -o -path './build/*' -o -path './vendor/*' -o -path '*/.terraform/*' \) -prune \)
 GO_SRC_FILES := $(shell find . $(FIND_EXCLUSIONS) -type f -name '*.go' -not -name '*_test.go')
 GO_FMT_FILES := $(shell find . $(FIND_EXCLUSIONS) -type f -name '*.go' -print0 | xargs -0 grep -E --null -L '^// Code generated .* DO NOT EDIT\.$$' | tr '\0' ' ')
 

@@ -14,7 +14,8 @@ go run github.com/coder/paralleltestctx/cmd/paralleltestctx@latest ./...
 
 ### Custom functions that produce contexts with timeouts
 
-By default, detects `context.WithTimeout` and `context.WithDeadline`.
+By default, the linter detects `context.WithTimeout` and `context.WithDeadline`
+as producing contexts with timeouts or deadlines.
 Additional functions that create a context with a deadline or timeout can be
 specified using the `-custom-funcs` flag.
 

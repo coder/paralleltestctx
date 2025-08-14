@@ -6,12 +6,6 @@ A Go static analysis tool that warns when timeout contexts are used after `t.Par
 
 See [our blog post](https://coder.com/blog/go-testing-contexts-and-t-parallel) for an in-depth explanation of the problem.
 
-## Installation
-
-```bash
-go install github.com/coder/paralleltestctx@latest
-```
-
 ## Usage
 
 ```bash

@@ -1,10 +1,11 @@
 # paralleltestctx
 
-A Go static analysis tool that warns when timeout contexts are used after `t.Parallel()` calls in tests.
+A Go static analysis tool that warns when contexts with a deadline are used in parallel subtests.
 
 ## Problem
 
 See [our blog post](https://coder.com/blog/go-testing-contexts-and-t-parallel) for an in-depth explanation of the problem.
+tl;dr - Always call `t.Parallel()` before `context.WithTimeout()`
 
 ## Usage
 
@@ -53,3 +54,7 @@ func TestGood(t *testing.T) {
     })
 }
 ```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

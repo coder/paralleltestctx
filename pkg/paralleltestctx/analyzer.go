@@ -73,6 +73,78 @@ func (a *ctxAnalyzer) doesCreateTimeoutContext(call *ast.CallExpr) bool {
 	return false
 }
 
+func (a *ctxAnalyzer) exprContainsTimeoutContext(expr ast.Expr) bool {
+	found := false
+	ast.Inspect(expr, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+
+		found = a.doesCreateTimeoutContext(call)
+		return !found
+	})
+	return found
+}
+
+func isContextType(pass *analysis.Pass, typ types.Type) bool {
+	if typ == nil {
+		return false
+	}
+
+	contextIface := contextInterface(pass)
+	if contextIface == nil {
+		return isStdlibContextType(typ)
+	}
+
+	return types.Implements(types.Unalias(typ), contextIface)
+}
+
+func contextInterface(pass *analysis.Pass) *types.Interface {
+	if pass.Pkg == nil {
+		return nil
+	}
+
+	for _, pkg := range pass.Pkg.Imports() {
+		if pkg.Path() != "context" {
+			continue
+		}
+
+		obj := pkg.Scope().Lookup("Context")
+		if obj == nil {
+			return nil
+		}
+
+		named, ok := obj.Type().(*types.Named)
+		if !ok {
+			return nil
+		}
+
+		iface, ok := named.Underlying().(*types.Interface)
+		if !ok {
+			return nil
+		}
+
+		return iface
+	}
+
+	return nil
+}
+
+func isStdlibContextType(typ types.Type) bool {
+	named, ok := types.Unalias(typ).(*types.Named)
+	if !ok {
+		return false
+	}
+
+	obj := named.Obj()
+	return obj.Name() == "Context" && obj.Pkg() != nil && obj.Pkg().Path() == "context"
+}
+
 func (a *ctxAnalyzer) getTimeoutFuncs() []timeoutFunc {
 	if a.timeoutFuncs != nil {
 		return a.timeoutFuncs
@@ -209,8 +281,11 @@ func (a *ctxAnalyzer) collectTimeoutContexts(pass *analysis.Pass, fd *ast.FuncDe
 			return true
 		}
 
-		call, ok := as.Rhs[0].(*ast.CallExpr)
-		if ok && a.doesCreateTimeoutContext(call) {
+		if !isContextType(pass, obj.Type()) {
+			return true
+		}
+
+		if a.exprContainsTimeoutContext(as.Rhs[0]) {
 			// This is a timeout context creation
 			ctx := timeoutContext{
 				obj: obj,

@@ -46,17 +46,18 @@ func TestStandardTimeoutWarn(t *testing.T) {
 	})
 }
 
-// Test function that should NOT be detected by default
-func NotATimeoutFunc(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+// Same-package helpers that return timeout contexts are detected even when
+// they are not listed as custom funcs.
+func SamePackageTimeoutFunc(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, timeout)
 }
 
-func TestNotDetectedByDefault(t *testing.T) {
-	ctx, cancel := NotATimeoutFunc(context.Background(), time.Second)
+func TestSamePackageHelperWarn(t *testing.T) {
+	ctx, cancel := SamePackageTimeoutFunc(context.Background(), time.Second)
 	defer cancel()
 	t.Run("sub", func(t *testing.T) {
-		t.Parallel() // should not warn when using default config
-		_ = ctx
+		t.Parallel()
+		_ = ctx // want "timeout context ctx used after a t.Parallel call"
 	})
 }
 

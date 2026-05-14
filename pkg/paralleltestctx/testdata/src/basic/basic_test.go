@@ -55,6 +55,39 @@ func TestDeadlineWarn(t *testing.T) {
 	})
 }
 
+func TestNestedTimeoutWarn(t *testing.T) {
+	ctx, cancel := wrapContext(context.WithTimeout(context.Background(), time.Second))
+	defer cancel()
+	t.Run("sub", func(t *testing.T) {
+		t.Parallel()
+		_ = ctx // want "timeout context ctx used after a t.Parallel call"
+	})
+}
+
+func TestNestedTimeoutNonContextLHSOK(t *testing.T) {
+	ok := contextWasCreated(context.WithTimeout(context.Background(), time.Second))
+	t.Run("sub", func(t *testing.T) {
+		t.Parallel()
+		_ = ok
+	})
+}
+
+func TestSamePackageTimeoutHelperWarn(t *testing.T) {
+	ctx := helperTimeoutContext(t)
+	t.Run("sub", func(t *testing.T) {
+		t.Parallel()
+		_ = ctx // want "timeout context ctx used after a t.Parallel call"
+	})
+}
+
+func TestSamePackageTimeoutHelperChainWarn(t *testing.T) {
+	ctx := chainedHelperTimeoutContext(t)
+	t.Run("sub", func(t *testing.T) {
+		t.Parallel()
+		doThing(ctx) // want "timeout context ctx used after a t.Parallel call"
+	})
+}
+
 func TestNoParallelOK(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -116,6 +149,28 @@ func TestOverwriteEarly(t *testing.T) {
 		t.Parallel()
 		_ = ctx
 	})
+}
+
+func wrapContext(ctx context.Context, cancel context.CancelFunc) (context.Context, context.CancelFunc) {
+	return ctx, cancel
+}
+
+func contextWasCreated(ctx context.Context, cancel context.CancelFunc) bool {
+	cancel()
+	return ctx != nil
+}
+
+func helperTimeoutContext(t *testing.T) context.Context {
+	return wrapOnlyContext(context.WithTimeout(context.Background(), time.Second))
+}
+
+func chainedHelperTimeoutContext(t *testing.T) context.Context {
+	return helperTimeoutContext(t)
+}
+
+func wrapOnlyContext(ctx context.Context, cancel context.CancelFunc) context.Context {
+	cancel()
+	return ctx
 }
 
 func doThing(ctx context.Context) {

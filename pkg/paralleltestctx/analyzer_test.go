@@ -32,9 +32,5 @@ func TestCustomWithReceiver(t *testing.T) {
 
 func TestOuterVars(t *testing.T) {
 	testdata := analysistest.TestData()
-
-	analyzer := newCtxAnalyzer()
-	analyzer.checkOuterAssignFlag = true
-
-	analysistest.Run(t, testdata, analyzer.analyzer, "outervars")
+	analysistest.Run(t, testdata, Analyzer(), "outervars")
 }

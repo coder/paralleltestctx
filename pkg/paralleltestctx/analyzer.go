@@ -23,17 +23,15 @@ type timeoutFunc struct {
 }
 
 type ctxAnalyzer struct {
-	analyzer             *analysis.Analyzer
-	timeoutFuncFlag      string
-	timeoutFuncs         []timeoutFunc // cache for flag parsed w/ defaults
-	checkOuterAssignFlag bool
+	analyzer        *analysis.Analyzer
+	timeoutFuncFlag string
+	timeoutFuncs    []timeoutFunc // cache for flag parsed w/ defaults
 }
 
 func newCtxAnalyzer() *ctxAnalyzer {
 	a := &ctxAnalyzer{}
 	var flags flag.FlagSet
 	flags.StringVar(&a.timeoutFuncFlag, "custom-funcs", "", "comma-separated list of additional function names that create timeout/deadline contexts")
-	flags.BoolVar(&a.checkOuterAssignFlag, "check-outer-assignments", false, "also warn when outer-scope variables are reassigned with `=` inside a parallel subtest")
 	a.analyzer = &analysis.Analyzer{
 		Name:  "paralleltestctx",
 		Doc:   Doc,
@@ -308,9 +306,7 @@ func (a *ctxAnalyzer) analyzeTestFunction(pass *analysis.Pass, fd *ast.FuncDecl,
 	// Collect all timeout contexts and their positions
 	timeoutCtxs := a.collectTimeoutContexts(pass, fd, helpers)
 
-	if len(timeoutCtxs) == 0 && !a.checkOuterAssignFlag {
-		return
-	}
+
 
 	timeoutCtxObjs := make(map[types.Object]struct{}, len(timeoutCtxs))
 	for _, c := range timeoutCtxs {
@@ -451,9 +447,7 @@ func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarN
 		return true
 	})
 
-	if a.checkOuterAssignFlag {
-		a.analyzeOuterVarReassignments(pass, scope, parallelCalls, timeoutCtxObjs)
-	}
+	a.analyzeOuterVarReassignments(pass, scope, parallelCalls, timeoutCtxObjs)
 }
 
 // checkContextViolation checks if a context identifier violates the t.Parallel usage rules

@@ -14,6 +14,34 @@ for an in-depth explanation of the problem.
 go run github.com/coder/paralleltestctx/cmd/paralleltestctx@latest ./...
 ```
 
+### Outer-scope variable reassignment
+
+The `-check-outer-assignments` flag enables a secondary check that warns
+when a variable declared in an enclosing scope is reassigned with `=`
+inside a parallel subtest. Sibling parallel subtests can race on the
+shared variable; the fix is almost always to shadow with `:=`.
+
+```go
+func TestBad(t *testing.T) {
+   t.Parallel()
+   var err error
+   for _, tc := range cases {
+      t.Run(tc.name, func(t *testing.T) {
+         t.Parallel()
+         // WARNING: `err` is shared across parallel subtests.
+         _, err = doThing(tc)
+         require.NoError(t, err)
+      })
+   }
+}
+```
+
+```bash
+go run github.com/coder/paralleltestctx/cmd/paralleltestctx@latest -check-outer-assignments ./...
+```
+
+The check is off by default and can be combined with `-custom-funcs`.
+
 ### Custom functions that produce contexts with timeouts
 
 By default, the linter detects `context.WithTimeout` and `context.WithDeadline`

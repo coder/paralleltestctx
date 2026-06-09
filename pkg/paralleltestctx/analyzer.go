@@ -23,15 +23,17 @@ type timeoutFunc struct {
 }
 
 type ctxAnalyzer struct {
-	analyzer        *analysis.Analyzer
-	timeoutFuncFlag string
-	timeoutFuncs    []timeoutFunc // cache for flag parsed w/ defaults
+	analyzer             *analysis.Analyzer
+	timeoutFuncFlag      string
+	timeoutFuncs         []timeoutFunc // cache for flag parsed w/ defaults
+	checkOuterAssignFlag bool
 }
 
 func newCtxAnalyzer() *ctxAnalyzer {
 	a := &ctxAnalyzer{}
 	var flags flag.FlagSet
 	flags.StringVar(&a.timeoutFuncFlag, "custom-funcs", "", "comma-separated list of additional function names that create timeout/deadline contexts")
+	flags.BoolVar(&a.checkOuterAssignFlag, "check-outer-assignments", false, "also warn when outer-scope variables are reassigned with `=` inside a parallel subtest")
 	a.analyzer = &analysis.Analyzer{
 		Name:  "paralleltestctx",
 		Doc:   Doc,
@@ -305,12 +307,18 @@ func (a *ctxAnalyzer) analyzeTestFunction(pass *analysis.Pass, fd *ast.FuncDecl,
 
 	// Collect all timeout contexts and their positions
 	timeoutCtxs := a.collectTimeoutContexts(pass, fd, helpers)
-	if len(timeoutCtxs) == 0 {
+
+	if len(timeoutCtxs) == 0 && !a.checkOuterAssignFlag {
 		return
 	}
 
+	timeoutCtxObjs := make(map[types.Object]struct{}, len(timeoutCtxs))
+	for _, c := range timeoutCtxs {
+		timeoutCtxObjs[c.obj] = struct{}{}
+	}
+
 	// Find all t.Parallel() calls and check for context usage after them
-	a.checkContextUsageAfterParallel(pass, fd, testVarName, timeoutCtxs)
+	a.analyzeScope(pass, fd.Body, testVarName, timeoutCtxs, timeoutCtxObjs)
 }
 
 func isTestFunction(fd *ast.FuncDecl) bool {
@@ -395,14 +403,8 @@ func (a *ctxAnalyzer) collectTimeoutContexts(pass *analysis.Pass, fd *ast.FuncDe
 	return contexts
 }
 
-// checkContextUsageAfterParallel walks through the AST and reports timeout context usage after t.Parallel() calls
-func (a *ctxAnalyzer) checkContextUsageAfterParallel(pass *analysis.Pass, fd *ast.FuncDecl, testVarName string, timeoutCtxs []timeoutContext) {
-	// Analyze each function scope (main test and subtests) separately
-	a.analyzeScope(pass, fd.Body, testVarName, timeoutCtxs)
-}
-
 // analyzeScope analyzes a specific scope (test function or subtest) for the pattern
-func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarName string, timeoutCtxs []timeoutContext) {
+func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarName string, timeoutCtxs []timeoutContext, timeoutCtxObjs map[types.Object]struct{}) {
 	var parallelCalls []ast.Node
 	reportedNodes := make(map[ast.Node]bool) // Track nodes we've already reported
 
@@ -412,7 +414,7 @@ func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarN
 			// Analyze the subtest scope separately with its own test variable
 			subtestVarName := a.getSubtestParamName(fl)
 			if subtestVarName != "" {
-				a.analyzeScope(pass, fl, subtestVarName, timeoutCtxs)
+				a.analyzeScope(pass, fl, subtestVarName, timeoutCtxs, timeoutCtxObjs)
 			}
 			return false // Don't continue into this scope
 		}
@@ -448,6 +450,10 @@ func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarN
 
 		return true
 	})
+
+	if a.checkOuterAssignFlag {
+		a.analyzeOuterVarReassignments(pass, scope, parallelCalls, timeoutCtxObjs)
+	}
 }
 
 // checkContextViolation checks if a context identifier violates the t.Parallel usage rules

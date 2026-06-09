@@ -306,8 +306,6 @@ func (a *ctxAnalyzer) analyzeTestFunction(pass *analysis.Pass, fd *ast.FuncDecl,
 	// Collect all timeout contexts and their positions
 	timeoutCtxs := a.collectTimeoutContexts(pass, fd, helpers)
 
-
-
 	timeoutCtxObjs := make(map[types.Object]struct{}, len(timeoutCtxs))
 	for _, c := range timeoutCtxs {
 		timeoutCtxObjs[c.obj] = struct{}{}

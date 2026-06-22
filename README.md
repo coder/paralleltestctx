@@ -27,6 +27,41 @@ go run github.com/coder/paralleltestctx/cmd/paralleltestctx@latest -custom-funcs
 
 ## Examples
 
+### ❌ Outer-scope variable reassigned in a parallel subtest
+
+Sibling parallel subtests can race on a variable declared in an enclosing
+scope. The fix is almost always to shadow with `:=`.
+
+```go
+func TestBad(t *testing.T) {
+   t.Parallel()
+   var err error
+   for _, tc := range cases {
+      t.Run(tc.name, func(t *testing.T) {
+         t.Parallel()
+         // WARNING: `err` is shared across parallel subtests.
+         _, err = doThing(tc)
+         require.NoError(t, err)
+      })
+   }
+}
+```
+
+```go
+func TestGood(t *testing.T) {
+   t.Parallel()
+   for _, tc := range cases {
+      t.Run(tc.name, func(t *testing.T) {
+         t.Parallel()
+         _, err := doThing(tc) // shadowed
+         require.NoError(t, err)
+      })
+   }
+}
+```
+
+
+
 ### ❌ Potentially flakey test
 
 ```go

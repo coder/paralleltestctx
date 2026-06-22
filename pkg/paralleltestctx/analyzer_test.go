@@ -29,3 +29,8 @@ func TestCustomWithReceiver(t *testing.T) {
 
 	analysistest.Run(t, testdata, analyzer.analyzer, "custom")
 }
+
+func TestOuterVars(t *testing.T) {
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, Analyzer(), "outervars")
+}

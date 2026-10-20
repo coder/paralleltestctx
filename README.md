@@ -96,6 +96,30 @@ func TestBad(t *testing.T) {
 }
 ```
 
+### ❌ Closure that captures a timeout context
+
+Calls to local closures are followed, including closures that call other
+closures.
+
+```go
+func TestBad(t *testing.T) {
+    t.Parallel()
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+    t.Cleanup(cancel)
+    load := func(id string) error {
+        return doSomething(ctx, id)
+    }
+    t.Run("sub", func(t *testing.T) {
+        t.Parallel()
+        // Danger! load uses the parent context, which may have timed out
+        _ = load("a") // Warning: timeout context used after t.Parallel call via closure
+    })
+}
+```
+
+The fix is to pass the context to the closure as a parameter, and create a new
+context in the subtest.
+
 ### ✅ Fixed test - create a new context
 
 ```go

@@ -34,3 +34,8 @@ func TestOuterVars(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, Analyzer(), "outervars")
 }
+
+func TestClosures(t *testing.T) {
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, Analyzer(), "closures")
+}

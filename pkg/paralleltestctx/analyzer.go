@@ -311,8 +311,10 @@ func (a *ctxAnalyzer) analyzeTestFunction(pass *analysis.Pass, fd *ast.FuncDecl,
 		timeoutCtxObjs[c.obj] = struct{}{}
 	}
 
+	closures := collectLocalClosures(pass, fd.Body)
+
 	// Find all t.Parallel() calls and check for context usage after them
-	a.analyzeScope(pass, fd.Body, testVarName, timeoutCtxs, timeoutCtxObjs)
+	a.analyzeScope(pass, fd.Body, testVarName, timeoutCtxs, timeoutCtxObjs, closures)
 }
 
 func isTestFunction(fd *ast.FuncDecl) bool {
@@ -398,7 +400,7 @@ func (a *ctxAnalyzer) collectTimeoutContexts(pass *analysis.Pass, fd *ast.FuncDe
 }
 
 // analyzeScope analyzes a specific scope (test function or subtest) for the pattern
-func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarName string, timeoutCtxs []timeoutContext, timeoutCtxObjs map[types.Object]struct{}) {
+func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarName string, timeoutCtxs []timeoutContext, timeoutCtxObjs map[types.Object]struct{}, closures *localClosures) {
 	var parallelCalls []ast.Node
 	reportedNodes := make(map[ast.Node]bool) // Track nodes we've already reported
 
@@ -408,7 +410,7 @@ func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarN
 			// Analyze the subtest scope separately with its own test variable
 			subtestVarName := a.getSubtestParamName(fl)
 			if subtestVarName != "" {
-				a.analyzeScope(pass, fl, subtestVarName, timeoutCtxs, timeoutCtxObjs)
+				a.analyzeScope(pass, fl, subtestVarName, timeoutCtxs, timeoutCtxObjs, closures)
 			}
 			return false // Don't continue into this scope
 		}
@@ -440,6 +442,11 @@ func (a *ctxAnalyzer) analyzeScope(pass *analysis.Pass, scope ast.Node, testVarN
 			if a.checkContextViolation(pass, id, n, parallelCalls, timeoutCtxs, false) {
 				return true
 			}
+		}
+
+		// Check calls to closures that capture a timeout context
+		if call, ok := n.(*ast.CallExpr); ok {
+			a.checkClosureCall(pass, call, parallelCalls, timeoutCtxs, closures)
 		}
 
 		return true
